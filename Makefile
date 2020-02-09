@@ -10,7 +10,7 @@ CC = g++
 
 COMPILER_FLAGS = -pthread -Wall -std=c++11 -g
 
-LINKER_FLAGS = -lpthread -lglut -lGL -lGLU -lboost_regex
+LINKER_FLAGS = -lpthread -lglut -lGL -lGLU -lGLEW -lboost_regex -lSOIL
 
 OBJ_NAME = robo
 

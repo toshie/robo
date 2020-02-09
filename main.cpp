@@ -1,3 +1,5 @@
+#define GLEW_STATIC
+
 #include "Common/ResourceManager.h"
 #include "Engine/Gfx/Renderer.h"
 

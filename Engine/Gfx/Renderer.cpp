@@ -1,10 +1,17 @@
 #define GL_GLEXT_PROTOTYPES
+#define GLEW_STATIC
+
+#include "Renderer.h"
 
 #include "Common/ResourceManager.h"
-#include "Engine/Gfx/DataModel/Mesh.h"
-#include "Engine/Gfx/Renderer.h"
+#include "DataModel/Mesh.h"
 
 #include <functional>
+
+#include <glm/mat4x4.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#include <SOIL/SOIL.h>
 
 GLfloat cameraAngleX = 0.0f;
 GLfloat cameraAngleY = 0.0f;
@@ -21,6 +28,12 @@ Renderer::~Renderer()
 
   if (_indexBufferId != 0)
     glDeleteBuffersARB(1, &_indexBufferId);
+
+  if (_textureBufferId != 0)
+    glDeleteBuffersARB(1, &_textureBufferId);
+
+  if (_textureId != 0)
+    glDeleteTextures(1, &_textureId);
 }
 
 bool Renderer::init(int& argc, char**& argv)
@@ -37,6 +50,16 @@ bool Renderer::init(int& argc, char**& argv)
   // Window will not displayed until glutMainLoop() is called
   // it returns a unique ID
   _screenHandle = glutCreateWindow(argv[0]);          // param is the title of window
+
+  GLenum glewStatus = glewInit();
+  if (glewStatus != GLEW_OK)
+  {
+    std::cerr << "ERROR: GLEW init fail: "
+              << glewGetErrorString(glewStatus) 
+              << std::endl;
+
+    return false;
+  }
 
   // register GLUT callback functions
   glutDisplayFunc(Renderer::displayWrapper);
@@ -59,6 +82,25 @@ bool Renderer::init(int& argc, char**& argv)
   glClearColor(0.5f, 0.5f, 0.5f, 0);                   // background color
   glClearStencil(0);                          // clear stencil buffer
   glClearDepth(1.0f);                         // 0 is near, 1 is far
+
+  // load general shaders and use them
+  if (!_vertexShader.init() || !_fragmentShader.init())
+  {
+    std::cerr << "Could not load needed shaders\n";
+    return false;
+  }
+
+  _shaderProgramId = glCreateProgram();
+  glAttachShader(_shaderProgramId, _vertexShader.getId());
+  glAttachShader(_shaderProgramId, _fragmentShader.getId());
+  glBindFragDataLocation(_shaderProgramId, 0, "FragColor");
+  glLinkProgram(_shaderProgramId);
+  glUseProgram(_shaderProgramId);
+
+
+  glm::mat4 proj = glm::perspective(glm::radians(45.0f), (float)_screenWidth / (float)_screenHeight, 1.0f, 10.0f);
+  GLuint u_projection_matrix = glGetUniformLocation(_shaderProgramId, "u_projection_matrix");
+  glUniformMatrix4fv(u_projection_matrix, 1, GL_FALSE, glm::value_ptr(proj));
 
 
   // test lights
@@ -85,7 +127,7 @@ bool Renderer::init(int& argc, char**& argv)
 
 void Renderer::start()
 {
-  glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); // show only mesh edges
+  /* glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); // show only mesh edges */
 
   cameraDistance = ResourceManager::instance().meshes()[0].getVertices()[0][0];
 
@@ -100,6 +142,8 @@ void Renderer::start()
                mesh.getVertices().size() * 3 * sizeof(GLfloat),
                &(*mesh.getVertices().begin()),
                GL_STATIC_DRAW);
+
+  // tekstury i normalne do ARRAY_BUFFER? czym się różni ARRAY_BUFFER OD ELEMENT_ARRAY_BUFFER?
 
   // index buffer
   glGenBuffers(1, &_indexBufferId);
@@ -118,8 +162,41 @@ void Renderer::start()
                   &(*mesh.getQuadVertexIndices().begin()));
 
   // texture buffer
-  glGenTextures(1, &_textureBufferId);
+  glGenBuffers(1, &_textureBufferId);
+  glBindBuffer(GL_TEXTURE_BUFFER, _textureBufferId);
+  glBufferData(GL_TEXTURE_BUFFER,
+               mesh.getTextures().size() * 3 * sizeof(GLfloat),
+               &(*mesh.getTextures().begin()),
+               GL_STATIC_DRAW);
 
+  // texture
+  glGenTextures(1, &_textureId);
+  glBindTexture(GL_TEXTURE_2D, _textureId);
+
+  // texture wrapping: repeat on X (S) and Y (T)
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+  // texture filtering: GL_NEAREST on scale down and up
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+  // load texture
+  int width, height;
+  unsigned char* image =
+        SOIL_load_image("Resource/Obj/maps/ARC170_TXT_VERSION_4_D.jpg", &width, &height, 0, SOIL_LOAD_RGB);
+  if (!image)
+  {
+    std::cerr << "Couldn't load a texture\n";
+    return;
+  }
+
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB,
+                    GL_UNSIGNED_BYTE, image);
+  SOIL_free_image_data(image);
+
+
+  glBindTexture(GL_TEXTURE_2D, 0);
 
   glutMainLoop();
 }
@@ -142,6 +219,7 @@ void Renderer::display()
 
   glBindBuffer(GL_ARRAY_BUFFER, _vertexBufferId);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _indexBufferId);
+  glBindBuffer(GL_TEXTURE_BUFFER, _textureBufferId);
 
 
 
@@ -177,6 +255,7 @@ void Renderer::display()
 
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+  glBindBuffer(GL_TEXTURE_BUFFER, 0);
   //glVertexPointer(3, GL_FLOAT, 0, &(*res.meshes()[0].vertices().begin()) );
   //glDrawArrays(GL_TRIANGLES, 0, res.meshes()[0].vertices().size());
   //glDrawElements(GL_TRIANGLES, res.meshes()[0].indices().size() * 3, GL_UNSIGNED_INT, &(*res.meshes()[0].indices().begin()) );

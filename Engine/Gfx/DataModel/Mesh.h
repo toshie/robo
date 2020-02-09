@@ -1,6 +1,6 @@
 #pragma once
 
-#include <GL/gl.h>
+#include <GL/glew.h>
 
 #include <array>
 #include <fstream>
@@ -23,6 +23,8 @@ public:
   const std::vector<std::array<GLuint, 3>> getTriangleNormalIndices() const { return _triangleNormalIndices; }
   const std::vector<std::array<GLuint, 4>> getQuadNormalIndices() const { return _quadNormalIndices; }
 
+  const std::vector<std::array<GLfloat, 3>> getTextures() const { return _textures; }
+
 private:
   void addIndex(const std::vector<std::string>& values);
 
@@ -35,7 +37,7 @@ private:
   std::vector<std::array<GLuint, 3>> _triangleNormalIndices;
   std::vector<std::array<GLuint, 4>> _quadNormalIndices;
 
-  std::vector<std::array<GLfloat, 2>> _textures;
+  std::vector<std::array<GLfloat, 3>> _textures;
   std::vector<std::array<GLuint, 3>> _triangleTextureIndices;
   std::vector<std::array<GLuint, 4>> _quadTextureIndices;
 };

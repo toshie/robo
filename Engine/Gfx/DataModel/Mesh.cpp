@@ -14,7 +14,7 @@ namespace
 
 const std::string OBJ_INDICATOR_VERTEX("v");
 const std::string OBJ_INDICATOR_NORMAL("vn");
-const std::string OBJ_INDICATOR_TEXTURE("vn");
+const std::string OBJ_INDICATOR_TEXTURE("vt");
 const std::string OBJ_INDICATOR_INDEX("f");
 
 std::array<GLfloat, 3> objLineTo3dCoords(const std::vector<std::string>& objFileLine)
@@ -133,7 +133,17 @@ void Mesh::addIndex(const std::vector<std::string>& values)
     }
   }
 
-    //if (textureX && textureY && textureZ)
+  if (textureA && textureB && textureC)
+  {
+    if (textureD)
+    {
+      _quadTextureIndices.push_back({*textureA - 1, *textureB - 1, *textureC - 1, *textureD - 1});
+    }
+    else
+      _triangleTextureIndices.push_back({*textureA - 1, *textureB - 1, *textureC - 1});
+    {
+    }
+  }
 
   if (normalA && normalB && normalC)
   {
@@ -177,7 +187,7 @@ void Mesh::fromObjFile(std::ifstream& file)
       }
       else if (lineIndicator == OBJ_INDICATOR_TEXTURE)
       {
-        _textures.push_back(objLineTo2dCoords(values));
+        _textures.push_back(objLineTo3dCoords(values));
       }
       else if (lineIndicator == OBJ_INDICATOR_INDEX)
       {

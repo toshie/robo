@@ -41,6 +41,7 @@ bool Renderer::init(int& argc, char**& argv)
   glutInit(&argc, argv);
 
   glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH | GLUT_STENCIL);   // display mode
+  /* glutInitDisplayMode(GLUT_RGBA);   // display mode */
 
   glutInitWindowSize(_screenWidth, _screenHeight);    // window size
 
@@ -95,13 +96,29 @@ bool Renderer::init(int& argc, char**& argv)
   glAttachShader(_shaderProgramId, _fragmentShader.getId());
   glBindFragDataLocation(_shaderProgramId, 0, "FragColor");
   glLinkProgram(_shaderProgramId);
-  glUseProgram(_shaderProgramId);
+  
+  GLint status = GL_TRUE;
+  glGetProgramiv(_shaderProgramId, GL_LINK_STATUS, &status);
+  if (status != GL_TRUE)
+  {
+    GLchar errorLog[256] = {0};
+    GLsizei length = 0;
+    glGetProgramInfoLog(
+        _shaderProgramId, sizeof(errorLog) / sizeof(GLchar), &length, errorLog);
 
+    std::cerr << "ERROR: Shader '"
+              << "' linking failed.\n"
+              << "Message: \n"
+              << errorLog << std::endl;
 
-  glm::mat4 proj = glm::perspective(glm::radians(45.0f), (float)_screenWidth / (float)_screenHeight, 1.0f, 10.0f);
+    return false;
+  }
+
+  glm::mat4 proj = glm::perspective(glm::radians(60.0f), (float)_screenWidth / (float)_screenHeight, 1.0f, 10000.0f);
   GLuint u_projection_matrix = glGetUniformLocation(_shaderProgramId, "u_projection_matrix");
   glUniformMatrix4fv(u_projection_matrix, 1, GL_FALSE, glm::value_ptr(proj));
 
+  glUseProgram(_shaderProgramId);
 
   // test lights
   // set up light colors (ambient, diffuse, specular)
@@ -196,7 +213,7 @@ void Renderer::start()
   SOIL_free_image_data(image);
 
 
-  glBindTexture(GL_TEXTURE_2D, 0);
+  // glBindTexture(GL_TEXTURE_2D, 0);
 
   glutMainLoop();
 }
@@ -249,6 +266,7 @@ void Renderer::display()
   //glEnableClientState(GL_NORMAL_ARRAY);
   glVertexPointer(3, GL_FLOAT, 0, 0);
   //glNormalPointer(GL_FLOAT,
+
   glDrawElements(GL_TRIANGLES, res.meshes()[0].getTriangleVertexIndices().size() * 3, GL_UNSIGNED_INT, 0);
   glDrawElements(GL_QUADS, res.meshes()[0].getQuadVertexIndices().size() * 4, GL_UNSIGNED_INT,
                  (void*)(res.meshes()[0].getTriangleVertexIndices().size() * 3 * sizeof(GLuint))); // offset
@@ -318,7 +336,8 @@ void Renderer::mouseMotion(int x, int y)
     }
     if(mouseRightDown)
     {
-        cameraDistance -= (y - mouseY) * 0.2f;
+        /* cameraDistance -= (y - mouseY) * 0.2f; */
+        cameraDistance -= (y - mouseY) * 20.f;
         mouseY = y;
     }
 }

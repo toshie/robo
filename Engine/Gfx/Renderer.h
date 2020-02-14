@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Keyboard.h"
 #include "Shader.h"
 
 #include <GL/glew.h>
@@ -32,11 +33,26 @@ private:
   void display();
   static void displayWrapper() { instance().display(); }
 
+  void idle();
+  static void idleWrapper() { instance().idle(); }
+
   void reshape(int width, int height);
   static void reshapeWrapper(int w, int h) { instance().reshape(w, h); }
   
   void timer(int millisec);
   static void timerWrapper(int millisec) { instance().timer(millisec); }
+
+  bool handleKeyboard();
+
+  static void keyboardDownWrapper(unsigned char key, int x, int y)
+  {
+    instance()._keyboard.keyDown(key, x, y);
+  }
+
+  static void keyboardUpWrapper(unsigned char key, int x, int y)
+  {
+    instance()._keyboard.keyUp(key, x, y);
+  } 
 
   void mouse(int button, int state, int x, int y);
   static void mouseWrapper(int button, int state, int x, int y)
@@ -50,7 +66,9 @@ private:
 
   void setPerspective();
 
-  bool loadModels();  
+  bool loadModels();
+
+  Keyboard _keyboard;
 
   int _screenHandle{0};
   int _screenHeight{0};

@@ -37,130 +37,91 @@ std::array<GLfloat, 2> objLineTo2dCoords(const std::vector<std::string>& objFile
 }
 
 
+
 } // anonymous namespace
 
-// TODO: too big!! simplify this function!!!
-void Mesh::addIndex(const std::vector<std::string>& values)
+GLuint Mesh::getVertexIdx(const std::string& objFaceIndex,
+                          const VertexPos& vertexPos,
+                          const TexturePos& texturePos,
+                          const NormalPos& normalPos,
+                          VerticesMap& vertices)
 {
-  const static size_t TRIANGLE_VALUES_COUNT = 4;
-  const static size_t QUAD_VALUES_COUNT = 5;
-  if (values.size() != TRIANGLE_VALUES_COUNT &&
-      values.size() != QUAD_VALUES_COUNT)
+  std::vector<std::string> indices;
+  boost::split(indices, objFaceIndex, boost::is_any_of("/"));
+
+  constexpr size_t VERTEX = 0, TEXTURE = 1, NORMAL = 2;
+  GLuint vertexPosIdx = 0, texturePosIdx = 0, normalPosIdx = 0;
+  if (indices.size() > VERTEX && !indices[VERTEX].empty())
+    vertexPosIdx = boost::lexical_cast<unsigned int>(indices[VERTEX]) - 1;
+
+  if (indices.size() > TEXTURE && !indices[TEXTURE].empty())
+    texturePosIdx = boost::lexical_cast<unsigned int>(indices[TEXTURE]) - 1;
+
+  if (indices.size() > NORMAL && !indices[NORMAL].empty())
+    normalPosIdx = boost::lexical_cast<unsigned int>(indices[NORMAL]) - 1;
+
+
+  auto key = std::make_tuple(vertexPosIdx, texturePosIdx, normalPosIdx);
+  auto found = vertices.find(key);
+
+  if (found != vertices.end())
+    return found->second.idx;
+
+  if (vertexPosIdx > vertexPos.size() ||
+      texturePosIdx > texturePos.size() ||
+      normalPosIdx > normalPos.size())
   {
-    throw std::range_error("WARNING: Mesh corrupted: bad count of poligon face's coords");
+    throw std::out_of_range("ERROR: Input .obj corrupted: index out of range");
   }
 
-  const static size_t VERTEX = 0;
-  const static size_t TEXTURE = 1;
-  const static size_t NORMAL = 2;
+  IndexedVertex v;
+  v.vertex.pos = vertexPos[vertexPosIdx];
+  v.vertex.texturePos = texturePos[texturePosIdx];
+  v.vertex.normalPos = normalPos[normalPosIdx];
+  v.idx = vertices.size();
+  vertices.insert({key, v});
+
+  return v.idx;
+}
+
+void Mesh::addFace(const std::vector<std::string>& objFileLine,
+                   const VertexPos& vertexPos,
+                   const TexturePos& texturePos,
+                   const NormalPos& normalPos,
+                   VerticesMap& vertices)
+{
+  constexpr size_t triangleVerticesCnt = 3;
+  if (objFileLine.size() < triangleVerticesCnt + 1)
+    throw std::invalid_argument("ERROR: .obj line doesn't have enough vertices to make a triangle or quad face");
 
   // all indices in line of object file are grouped by vertex order
   //    B       B------C
   //   / \      |      |
   //  /   \     |      |
   // A-----C    A------D
-  boost::optional<GLuint> vertexA, vertexB, vertexC, vertexD;
-  boost::optional<GLuint> textureA, textureB, textureC, textureD;
-  boost::optional<GLuint> normalA, normalB, normalC, normalD;
+  GLuint indexA = getVertexIdx(objFileLine[1], vertexPos, texturePos, normalPos, vertices);
+  GLuint indexB = getVertexIdx(objFileLine[2], vertexPos, texturePos, normalPos, vertices);
+  GLuint indexC = getVertexIdx(objFileLine[3], vertexPos, texturePos, normalPos, vertices);
 
-  std::vector<std::string> indicesA;
-  boost::split(indicesA, values[1], boost::is_any_of("/"));
-
-  if (indicesA.size() > VERTEX && !indicesA[VERTEX].empty())
-    vertexA = boost::lexical_cast<unsigned int>(indicesA[VERTEX]);
-
-  if (indicesA.size() > TEXTURE && !indicesA[TEXTURE].empty())
-    textureA = boost::lexical_cast<unsigned int>(indicesA[TEXTURE]);
-
-  if (indicesA.size() > NORMAL && !indicesA[NORMAL].empty())
-    normalA = boost::lexical_cast<unsigned int>(indicesA[NORMAL]);
-
-
-  std::vector<std::string> indicesB;
-  boost::split(indicesB, values[2], boost::is_any_of("/"));
-
-  if (indicesB.size() > VERTEX && !indicesB[VERTEX].empty())
-    vertexB = boost::lexical_cast<unsigned int>(indicesB[VERTEX]);
-
-  if (indicesB.size() > TEXTURE && !indicesB[TEXTURE].empty())
-    textureB = boost::lexical_cast<unsigned int>(indicesB[TEXTURE]);
-
-  if (indicesB.size() > NORMAL && !indicesB[NORMAL].empty())
-    normalB = boost::lexical_cast<unsigned int>(indicesB[NORMAL]);
-
-
-  std::vector<std::string> indicesC;
-  boost::split(indicesC, values[3], boost::is_any_of("/"));
-
-  if (indicesC.size() > VERTEX && !indicesC[VERTEX].empty())
-    vertexC = boost::lexical_cast<unsigned int>(indicesC[VERTEX]);
-
-  if (indicesC.size() > TEXTURE && !indicesC[TEXTURE].empty())
-    textureC = boost::lexical_cast<unsigned int>(indicesC[TEXTURE]);
-
-  if (indicesC.size() > NORMAL && !indicesC[NORMAL].empty())
-    normalC = boost::lexical_cast<unsigned int>(indicesC[NORMAL]);
-
-  // now get the indices for the figure's fourth vertex if this is a Quad
-  if (values.size() == QUAD_VALUES_COUNT)
+  constexpr size_t quadVerticesCnt = 4;
+  if (objFileLine.size() >= quadVerticesCnt + 1)
   {
-    std::vector<std::string> indicesD;
-    boost::split(indicesD, values[4], boost::is_any_of("/"));
-
-    if (indicesD.size() > VERTEX && !indicesD[VERTEX].empty())
-      vertexD = boost::lexical_cast<unsigned int>(indicesD[VERTEX]);
-
-    if (indicesD.size() > TEXTURE && !indicesD[TEXTURE].empty())
-      textureD = boost::lexical_cast<unsigned int>(indicesD[TEXTURE]);
-
-    if (indicesD.size() > NORMAL && !indicesD[NORMAL].empty())
-      normalD = boost::lexical_cast<unsigned int>(indicesD[NORMAL]);
+    GLuint indexD = getVertexIdx(objFileLine[4], vertexPos, texturePos, normalPos, vertices);
+    _quadFaces.push_back({indexA, indexB, indexC, indexD});
   }
-
-
-
-  if (vertexA && vertexB && vertexC)
+  else
   {
-    // vertex indexes in .obj files starts with 1, not 0
-    // so we need to decrement
-    if (vertexD)
-    {
-      _quadVertexIndices.push_back({*vertexA - 1, *vertexB - 1, *vertexC - 1, *vertexD - 1});
-    }
-    else
-    {
-      _triangleVertexIndices.push_back({*vertexA - 1, *vertexB - 1, *vertexC - 1});
-    }
-  }
-
-  if (textureA && textureB && textureC)
-  {
-    if (textureD)
-    {
-      _quadTextureIndices.push_back({*textureA - 1, *textureB - 1, *textureC - 1, *textureD - 1});
-    }
-    else
-      _triangleTextureIndices.push_back({*textureA - 1, *textureB - 1, *textureC - 1});
-    {
-    }
-  }
-
-  if (normalA && normalB && normalC)
-  {
-    if (normalD)
-    {
-      _quadNormalIndices.push_back({*normalA - 1, *normalB - 1, *normalC - 1, *normalD - 1});
-    }
-    else
-    {
-      _triangleNormalIndices.push_back({*normalA - 1, *normalB - 1, *normalC - 1});
-    }
+    _triangleFaces.push_back({indexA, indexB, indexC});
   }
 }
 
 void Mesh::fromObjFile(std::ifstream& file)
 {
   std::string line;
+  VertexPos vertexPos;
+  TexturePos texturePos;
+  NormalPos normalPos;
+  VerticesMap vertices;
   while (std::getline(file, line))
   {
     boost::trim(line);
@@ -179,24 +140,31 @@ void Mesh::fromObjFile(std::ifstream& file)
       std::string& lineIndicator = values[0];
       if (lineIndicator == OBJ_INDICATOR_VERTEX)
       {
-        _vertices.push_back(objLineTo3dCoords(values));
+        vertexPos.push_back(objLineTo3dCoords(values));
       }
       else if (lineIndicator == OBJ_INDICATOR_NORMAL)
       {
-        _normals.push_back(objLineTo3dCoords(values));
+        normalPos.push_back(objLineTo3dCoords(values));
       }
       else if (lineIndicator == OBJ_INDICATOR_TEXTURE)
       {
-        _textures.push_back(objLineTo3dCoords(values));
+        texturePos.push_back(objLineTo2dCoords(values));
       }
       else if (lineIndicator == OBJ_INDICATOR_INDEX)
       {
-        addIndex(values);
+        addFace(values, vertexPos, texturePos, normalPos, vertices);
       }
     }
-    catch (std::range_error& re)
+    catch (std::exception& re)
     {
       ResourceManager::instance().console() << re.what() << "\n";
     }
+  }
+
+  _vertices.resize(vertices.size());
+  for (const auto& keyAndVertex : vertices)
+  {
+    const IndexedVertex& v = keyAndVertex.second;
+    _vertices[v.idx] = std::move(v.vertex);
   }
 }

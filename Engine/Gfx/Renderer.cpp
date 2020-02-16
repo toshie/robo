@@ -45,8 +45,8 @@ Renderer::~Renderer()
   if (_indexBufferId != 0)
     glDeleteBuffersARB(1, &_indexBufferId);
 
-  if (_textureBufferId != 0)
-    glDeleteBuffersARB(1, &_textureBufferId);
+  /* if (_textureBufferId != 0) */
+  /*   glDeleteBuffersARB(1, &_textureBufferId); */
 
   if (_textureId != 0)
     glDeleteTextures(1, &_textureId);
@@ -164,47 +164,73 @@ void Renderer::start()
 {
   /* glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); // show only mesh edges */
 
-  cameraDistance = ResourceManager::instance().meshes()[0].getVertices()[0][0];
+  cameraDistance = ResourceManager::instance().meshes()[0].getVertices()[0].pos[0];
 
   ResourceManager& res = ResourceManager::instance();
   const Mesh& mesh = res.meshes()[0];
-
 
   // vertex buffer
   glGenBuffers(1, &_vertexBufferId);
   glBindBuffer(GL_ARRAY_BUFFER, _vertexBufferId);
   glBufferData(GL_ARRAY_BUFFER,
-               mesh.getVertices().size() * 3 * sizeof(GLfloat),
-               &(*mesh.getVertices().begin()),
+               mesh.getVerticesBytes(),
+               mesh.getVerticesPtr(),
                GL_STATIC_DRAW);
 
   // index buffer
   glGenBuffers(1, &_indexBufferId);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _indexBufferId);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-               mesh.getTriangleVertexIndices().size() * 3 * sizeof(GLuint) + mesh.getQuadVertexIndices().size() * 4 * sizeof(GLuint),
+               mesh.getTriangleFacesBytes() + mesh.getQuadFacesBytes(),
                0,
                GL_STATIC_DRAW);
   glBufferSubData(GL_ELEMENT_ARRAY_BUFFER,
                   0,
-                  mesh.getTriangleVertexIndices().size() * 3 * sizeof(GLuint),
-                  &(*mesh.getTriangleVertexIndices().begin()));
+                  mesh.getTriangleFacesBytes(),
+                  mesh.getTriangleFacesPtr());
   glBufferSubData(GL_ELEMENT_ARRAY_BUFFER,
-                  mesh.getTriangleVertexIndices().size() * 3 * sizeof(GLuint),
-                  mesh.getQuadVertexIndices().size() * 4 * sizeof(GLuint),
-                  &(*mesh.getQuadVertexIndices().begin()));
+                  mesh.getTriangleFacesBytes(),
+                  mesh.getQuadFacesBytes(),
+                  mesh.getQuadFacesPtr());
 
+  /* GLfloat vertices[] = {0.1f, 0.1f, 0.1f, */
+  /*                       0.2f, 0.2f, */
+  /*                       0.3f, 0.3f, 0.3f}; */
+  /* GLuint indices[] = {0}; */
+  /* glGenBuffers(1, &_vertexBufferId); */
+  /* glBindBuffer(GL_ARRAY_BUFFER, _vertexBufferId); */
+  /* glBufferData(GL_ARRAY_BUFFER, */
+  /*              32, */
+  /*              vertices, */
+  /*              GL_STATIC_DRAW); */
+
+  // index buffer
+  /* glGenBuffers(1, &_indexBufferId); */
+  /* glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _indexBufferId); */
+  /* glBufferData(GL_ELEMENT_ARRAY_BUFFER, */
+  /*              sizeof(GLuint), */
+  /*              indices, */
+  /*              GL_STATIC_DRAW); */
+  /* glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, */
+  /*                 0, */
+  /*                 mesh.getTriangleFacesBytes(), */
+  /*                 mesh.getTriangleFacesPtr()); */
+  /* glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, */
+  /*                 mesh.getTriangleFacesBytes(), */
+  /*                 mesh.getQuadFacesBytes(), */
+  /*                 mesh.getQuadFacesPtr()); */
 
   // texture buffer
-  glGenBuffers(1, &_textureBufferId);
-  glBindBuffer(GL_TEXTURE_BUFFER, _textureBufferId);
-  glBufferData(GL_TEXTURE_BUFFER,
-               mesh.getTextures().size() * 3 * sizeof(GLfloat),
-               &(*mesh.getTextures().begin()),
-               GL_STATIC_DRAW);
+  /* glGenBuffers(1, &_textureBufferId); */
+  /* glBindBuffer(GL_TEXTURE_BUFFER, _textureBufferId); */
+  /* glBufferData(GL_TEXTURE_BUFFER, */
+  /*              mesh.getTextures().size() * 2 * sizeof(GLfloat), */
+  /*              &(*mesh.getTextures().begin()), */
+  /*              GL_STATIC_DRAW); */
 
   // texture
   glGenTextures(1, &_textureId);
+  glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, _textureId);
 
   // texture wrapping: repeat on X (S) and Y (T)
@@ -218,7 +244,7 @@ void Renderer::start()
   // load texture
   int width, height;
   unsigned char* image =
-        SOIL_load_image("Resource/Obj/maps/ARC170_TXT_VERSION_4_D.jpg", &width, &height, 0, SOIL_LOAD_RGB);
+        SOIL_load_image("Resource/Obj/maps/ARC170_TXT_VERSION_4_D.jpg", &width, &height, 0 , SOIL_LOAD_RGB);
   if (!image)
   {
     std::cerr << "Couldn't load a texture\n";
@@ -229,12 +255,10 @@ void Renderer::start()
                     GL_UNSIGNED_BYTE, image);
   SOIL_free_image_data(image);
 
-
-  // glBindTexture(GL_TEXTURE_2D, 0);
-
+  glBindTexture(GL_TEXTURE_2D, 0);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-  glBindBuffer(GL_TEXTURE_BUFFER, 0);
+  /* glBindBuffer(GL_TEXTURE_BUFFER, 0); */
 
   glutMainLoop();
 }
@@ -257,7 +281,7 @@ void Renderer::display()
 
   glBindBuffer(GL_ARRAY_BUFFER, _vertexBufferId);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _indexBufferId);
-  glBindBuffer(GL_TEXTURE_BUFFER, _textureBufferId);
+  /* glBindBuffer(GL_TEXTURE_BUFFER, _textureBufferId); */
 
 
 
@@ -279,10 +303,34 @@ void Renderer::display()
 */
 
 
-    GLint posAttrib = glGetAttribLocation(_shaderProgramId, "pos");
-    glVertexAttribPointer(posAttrib, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), 0);
-    glEnableVertexAttribArray(posAttrib);
+  // TODO: would be nice if these offsets were calculated by Mesh::Vertex
+  /* constexpr GLint vertexPosAttrib = 0; */
+  /* glVertexAttribPointer(vertexPosAttrib, 3, GL_FLOAT, GL_FALSE, sizeof(Mesh::Vertex), 0); */
+  /* glEnableVertexAttribArray(vertexPosAttrib); */
 
+  /* constexpr GLint texturePosAttrib = 1; */
+  /* void* textureOffset = reinterpret_cast<void*>(sizeof(Mesh::Vertex::pos)); */
+  /* glVertexAttribPointer(texturePosAttrib, 2, GL_FLOAT, GL_FALSE, sizeof(Mesh::Vertex), textureOffset); */
+  /* glEnableVertexAttribArray(texturePosAttrib); */
+  
+  /* constexpr GLint normalPosAttrib = 2; */
+  /* void* normalOffset = reinterpret_cast<void*>((size_t)textureOffset + sizeof(Mesh::Vertex::texturePos)); */
+  /* glVertexAttribPointer(normalPosAttrib, 3, GL_FLOAT, GL_FALSE, sizeof(Mesh::Vertex), normalOffset); */
+  /* glEnableVertexAttribArray(normalPosAttrib); */
+
+  constexpr GLint vertexPosAttrib = 0;
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 32, 0);
+  glEnableVertexAttribArray(0);
+
+  constexpr GLint texturePosAttrib = 1;
+  void* textureOffset = reinterpret_cast<void*>(sizeof(Mesh::Vertex::pos));
+  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 32, (void*)(3 * 4));
+  glEnableVertexAttribArray(1);
+  
+  constexpr GLint normalPosAttrib = 2;
+  void* normalOffset = reinterpret_cast<void*>((size_t)textureOffset + sizeof(Mesh::Vertex::texturePos));
+  glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 32, (void*)(3 * 4 + 2 * 4));
+  glEnableVertexAttribArray(2);
 
   GLint uniModel = glGetUniformLocation(_shaderProgramId, "model");
         glm::mat4 model = glm::mat4(1.0f);
@@ -293,21 +341,14 @@ void Renderer::display()
         );
         glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(model));
 
-  /* glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f); */
-  /* glm::vec3 cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f); */
-  /* glm::vec3 cameraDirection = glm::normalize(cameraPos - cameraTarget); */
-  /* glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f); */
-  /* glm::vec3 cameraRight = glm::normalize(glm::cross(up, cameraDirection)); */
-  /* glm::vec3 cameraUp = glm::cross(cameraDirection, cameraRight); */
-
-    // Set up projection
-    glm::mat4 view = glm::lookAt(
-        cameraPos,
-        cameraTarget,
-        glm::vec3(0.0f, 1.0f, 0.0f)
-    );
-    GLint uniView = glGetUniformLocation(_shaderProgramId, "view");
-    glUniformMatrix4fv(uniView, 1, GL_FALSE, glm::value_ptr(view));
+  // Set up projection
+  glm::mat4 view = glm::lookAt(
+      cameraPos,
+      cameraTarget,
+      glm::vec3(0.0f, 1.0f, 0.0f)
+  );
+  GLint uniView = glGetUniformLocation(_shaderProgramId, "view");
+  glUniformMatrix4fv(uniView, 1, GL_FALSE, glm::value_ptr(view));
 
   glm::mat4 proj = glm::perspective(glm::radians(60.0f), (float)_screenWidth / (float)_screenHeight, 1.0f, 10000.0f);
   GLint uniProj = glGetUniformLocation(_shaderProgramId, "proj");
@@ -315,22 +356,29 @@ void Renderer::display()
   /* GLuint u_projection_matrix = glGetUniformLocation(_shaderProgramId, "u_projection_matrix"); */
   /* glUniformMatrix4fv(u_projection_matrix, 1, GL_FALSE, glm::value_ptr(proj)); */
 
+  // bind texture to sampler in shader
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, _textureId);
+  glUniform1i(glGetUniformLocation(_shaderProgramId, "texSampler"), 0);
 
 
 
-  glEnableClientState(GL_VERTEX_ARRAY);
-  //glEnableClientState(GL_NORMAL_ARRAY);
-  glVertexPointer(3, GL_FLOAT, 0, 0);
-  //glNormalPointer(GL_FLOAT,
+  /* glEnableClientState(GL_VERTEX_ARRAY); */
+  /* glEnableClientState(GL_NORMAL_ARRAY); */
+  /* glEnableClientState(GL_TEXTURE_COORD_ARRAY); */
+  /* glVertexPointer(3, GL_FLOAT, 0, 0); */
 
   /* glDrawArrays(GL_TRIANGLES, 0, 3); */
-  glDrawElements(GL_TRIANGLES, res.meshes()[0].getTriangleVertexIndices().size() * 3, GL_UNSIGNED_INT, 0);
-  glDrawElements(GL_QUADS, res.meshes()[0].getQuadVertexIndices().size() * 4, GL_UNSIGNED_INT,
-                 (void*)(res.meshes()[0].getTriangleVertexIndices().size() * 3 * sizeof(GLuint))); // offset
+  glDrawElements(GL_TRIANGLES, res.meshes()[0].getTriangleVerticesCount(), GL_UNSIGNED_INT, 0);
+  /* glDrawElements(GL_TRIANGLES, 1, GL_UNSIGNED_INT, 0); */
+  glDrawElements(GL_QUADS, res.meshes()[0].getQuadVerticesCount(), GL_UNSIGNED_INT,
+                 (void*)(res.meshes()[0].getTriangleFacesBytes())); // offset
+  glDrawElements(GL_QUADS, res.meshes()[0].getQuadVerticesCount(), GL_UNSIGNED_INT,
+                 (void*)(res.meshes()[0].getTriangleFacesBytes())); // offset
 
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-  glBindBuffer(GL_TEXTURE_BUFFER, 0);
+  /* glBindBuffer(GL_TEXTURE_BUFFER, 0); */
   //glVertexPointer(3, GL_FLOAT, 0, &(*res.meshes()[0].vertices().begin()) );
   //glDrawArrays(GL_TRIANGLES, 0, res.meshes()[0].vertices().size());
   //glDrawElements(GL_TRIANGLES, res.meshes()[0].indices().size() * 3, GL_UNSIGNED_INT, &(*res.meshes()[0].indices().begin()) );
@@ -470,9 +518,12 @@ void Renderer::mouseMotion(int x, int y)
   glm::vec3 backwardDirection = glm::normalize(cameraPos - cameraTarget);
   glm::vec3 forwardDirection = -backwardDirection;
   glm::vec3 right = glm::normalize(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), backwardDirection));
-  glm::vec3 left = -right;
+  /* glm::vec3 left = -right; */
   glm::vec3 up = glm::cross(backwardDirection, right);
-  
+
+  /* std::cout << "DBG: xOffset * sensitivity: " << xOffset * sensitivity << std::endl; */
+  /* std::cout << "DBG: yOffset * sensitivity: " << yOffset * sensitivity << std::endl; */
+
   glm::mat4 rotation = glm::mat4(1.0f);
   rotation = glm::rotate(
             rotation,
@@ -486,6 +537,7 @@ void Renderer::mouseMotion(int x, int y)
         );
 
   /* glm::vec3 forwardDirection = glm::normalize(cameraTarget - cameraPos); */
+
   cameraTarget = cameraPos + glm::vec3(rotation * glm::vec4(forwardDirection, 1.0));
 
   mouseX = x;

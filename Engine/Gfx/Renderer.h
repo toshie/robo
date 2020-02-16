@@ -76,6 +76,7 @@ private:
 
   GLuint _vertexBufferId{0};
   GLuint _indexBufferId{0};
+  GLuint _textureCoordBufId{0};
   GLuint _textureBufferId{0};
   GLuint _textureId{0};
 

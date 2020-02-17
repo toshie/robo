@@ -7,6 +7,7 @@
 #include "DataModel/Mesh.h"
 
 #include <functional>
+#include <mutex>
 
 #include <glm/mat4x4.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -22,6 +23,8 @@ bool mouseLeftDown = false;
 bool mouseRightDown = false;
 glm::vec3 cameraPos = glm::vec3(2.5f, 2.5f, 2.0f);
 glm::vec3 cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
+
+std::mutex m;
 
 void GLAPIENTRY
 MessageCallback( GLenum source,
@@ -263,6 +266,12 @@ void Renderer::start()
   glutMainLoop();
 }
 
+glm::vec3 viewRight(1.0, 0.0, 0.0);
+glm::vec3 viewUp(0.0, 1.0, 0.0);
+glm::vec3 viewForward(0.0, 0.0, 1.0);
+glm::vec3 viewPos(0.0, 0.0, 0.0);
+
+
 void Renderer::display()
 {
   // clear buffer
@@ -334,19 +343,32 @@ void Renderer::display()
 
   GLint uniModel = glGetUniformLocation(_shaderProgramId, "model");
         glm::mat4 model = glm::mat4(1.0f);
-        model = glm::rotate(
-            model,
-            glm::radians(180.0f),
-            glm::vec3(0.0f, 0.0f, 1.0f)
-        );
         glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(model));
 
   // Set up projection
-  glm::mat4 view = glm::lookAt(
-      cameraPos,
-      cameraTarget,
-      glm::vec3(0.0f, 1.0f, 0.0f)
+  /* glm::mat4 view = glm::lookAt( */
+  /*     cameraPos, */
+  /*     cameraTarget, */
+  /*     glm::vec3(0.0f, 1.0f, 0.0f) */
+  /* ); */
+
+  /* m.lock(); */
+  /* glm::mat4 view( */
+  /*     viewRight.x, viewUp.x, viewForward.x, viewPos.x, */
+  /*     viewRight.y, viewUp.y, viewForward.y, viewPos.y, */
+  /*     viewRight.z, viewUp.z, viewForward.z, viewPos.z, */
+  /*     0.0, 0.0, 0.0, 1.0 */
+  /* ); */
+
+  glm::mat4 view(
+      viewRight.x, viewUp.x, viewForward.x, 0.0,
+      viewRight.y, viewUp.y, viewForward.y, 0.0,
+      viewRight.z, viewUp.z, viewForward.z, 0.0,
+      -glm::dot(viewRight, viewPos), -glm::dot(viewUp, viewPos), -glm::dot(viewForward, viewPos), 1.0
   );
+
+  m.unlock();
+
   GLint uniView = glGetUniformLocation(_shaderProgramId, "view");
   glUniformMatrix4fv(uniView, 1, GL_FALSE, glm::value_ptr(view));
 
@@ -425,7 +447,7 @@ std::ostream& operator<<(std::ostream& s, glm::vec4 v)
 
 bool Renderer::handleKeyboard()
 {
-  constexpr GLfloat speed = 25.;
+  constexpr GLfloat speed = 10.0;
 
   glm::vec3 backwardDirection = glm::normalize(cameraPos - cameraTarget);
   glm::vec3 forwardDirection = glm::normalize(-backwardDirection);
@@ -436,38 +458,41 @@ bool Renderer::handleKeyboard()
   bool stateChanged = false;
   if (_keyboard.isKeyDown('w'))
   {
-    cameraPos += forwardDirection * speed;
+    viewPos -= viewForward * speed;
     cameraTarget += forwardDirection * speed;
     stateChanged = true;
   }
   else if (_keyboard.isKeyDown('s'))
   {
-    cameraPos += backwardDirection * speed;
+    viewPos += viewForward * speed;
     cameraTarget += backwardDirection * speed;
     stateChanged = true;
   }
 
   if (_keyboard.isKeyDown('a'))
   {
+    viewPos -= viewRight * speed;
     cameraPos += left * speed;
     cameraTarget += left * speed;
     stateChanged = true;
   }
   else if (_keyboard.isKeyDown('d'))
   {
-    cameraPos += right * speed;
+    viewPos += viewRight * speed;
     cameraTarget += right * speed;
     stateChanged = true;
   }
   
   if (_keyboard.isKeyDown(' '))
   {
+    viewPos.y += speed;
     cameraPos += up * speed;
     cameraTarget += up * speed;
     stateChanged = true;
   }
   else if (_keyboard.isKeyDown('c'))
   {
+    viewPos.y -= speed;
     cameraPos -= up * speed;
     cameraTarget -= up * speed;
     stateChanged = true;
@@ -509,6 +534,8 @@ void Renderer::mouse(int button, int state, int x, int y)
   }
 }
 
+GLfloat pitch = 0;
+
 void Renderer::mouseMotion(int x, int y)
 {
   GLfloat sensitivity = 0.5f;
@@ -524,21 +551,82 @@ void Renderer::mouseMotion(int x, int y)
   /* std::cout << "DBG: xOffset * sensitivity: " << xOffset * sensitivity << std::endl; */
   /* std::cout << "DBG: yOffset * sensitivity: " << yOffset * sensitivity << std::endl; */
 
-  glm::mat4 rotation = glm::mat4(1.0f);
-  rotation = glm::rotate(
-            rotation,
-            glm::radians(xOffset * sensitivity),
-            up
-        );
-  rotation = glm::rotate(
-            rotation,
-            glm::radians(yOffset * sensitivity),
-            right
-        );
+  /* glm::mat4 rotation = glm::mat4(1.0f); */
+  /* rotation = glm::rotate( */
+  /*           rotation, */
+  /*           glm::radians(xOffset * sensitivity), */
+  /*           up */
+  /*       ); */
+  /* rotation = glm::rotate( */
+  /*           rotation, */
+  /*           glm::radians(yOffset * sensitivity), */
+  /*           right */
+  /*       ); */
 
   /* glm::vec3 forwardDirection = glm::normalize(cameraTarget - cameraPos); */
 
-  cameraTarget = cameraPos + glm::vec3(rotation * glm::vec4(forwardDirection, 1.0));
+
+  /* GLfloat oldY = cameraTarget.y; */
+  /* cameraTarget = cameraPos + glm::normalize(glm::vec3(rotation * glm::vec4(forwardDirection, 1.0))); */
+  /* if (glm::abs(oldY - cameraTarget.y) > 1.0) */
+  /*   cameraTarget.y *= -1.0; */
+
+
+
+
+  glm::mat4 rotation = glm::mat4(1.0f);
+  rotation = glm::rotate(
+                rotation,
+                glm::radians(xOffset * sensitivity),
+                viewUp
+              );
+  rotation = glm::rotate(
+                rotation,
+                glm::radians(yOffset * sensitivity),
+                viewRight
+              );
+  
+  viewForward = glm::normalize(glm::vec3(rotation * glm::vec4(viewForward, 1.0)));
+  viewRight = glm::normalize(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), viewForward));
+  viewUp = glm::normalize(glm::cross(viewForward, viewRight));
+
+  /* std::cout << "DBG: viewForward: " << viewForward << std::endl; */
+  /* std::cout << "DBG: viewRight: " << viewRight << std::endl; */
+  /* std::cout << "DBG: viewUp: " << viewUp << std::endl; */
+
+  /* viewRight = glm::normalize(glm::vec3(rotation * glm::vec4(viewRight, 1.0))); */
+  /* viewUp = glm::normalize(glm::vec3(rotation * glm::vec4(viewUp, 1.0))); */
+
+  /* pitch += yOffset * sensitivity; */
+
+  /* viewUp.y = sin(glm::radians(pitch)); */
+  /* viewForward.y = sin(glm::radians(pitch)); */
+
+
+
+
+
+
+  /* glm::mat4 xRotation = glm::mat4(1.0f); */
+  /* xRotation = glm::rotate( */
+  /*               xRotation, */
+  /*               glm::radians(xOffset * sensitivity), */
+  /*               viewUp */
+  /*             ); */
+
+  /* viewRight = glm::normalize(glm::vec3(xRotation * glm::vec4(viewRight, 1.0))); */
+
+  /* glm::mat4 yRotation = glm::mat4(1.0f); */
+  /* yRotation = glm::rotate( */
+  /*               yRotation, */
+  /*               glm::radians(yOffset * sensitivity), */
+  /*               viewRight */
+  /*             ); */
+
+  /* viewUp = glm::normalize(glm::vec3(yRotation * glm::vec4(viewUp, 1.0))); */
+
+  /* viewForward = glm::normalize(glm::cross(viewRight, viewUp)); */
+
 
   mouseX = x;
   mouseY = y;

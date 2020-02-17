@@ -40,7 +40,6 @@ public:
   const size_t getTriangleVerticesCount() const { return _triangleFaces.size() * 3; }
 
   const size_t getVerticesBytes() const { return _vertices.size() * sizeof(Vertex); }
-  /* const size_t getVerticesBytes() const { return 45000 * sizeof(Vertex); } */
   const std::vector<Vertex>& getVertices() const { return _vertices; }
   const std::uint8_t* getVerticesPtr() const
   {
@@ -54,6 +53,7 @@ private:
     GLuint idx;
   };
 
+  // TODO: map is slow, replace it with something else
   using VerticesMap = std::map<std::tuple<GLuint, GLuint, GLuint>, IndexedVertex>;
   using VertexPos = std::vector<std::array<GLfloat, 3>>;
   using TexturePos = std::vector<std::array<GLfloat, 2>>;

@@ -6,13 +6,12 @@
 #include "Common/ResourceManager.h"
 #include "DataModel/Mesh.h"
 
-#include <functional>
-#include <mutex>
-
 #include <glm/mat4x4.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <SOIL/SOIL.h>
+
+#include <functional>
 
 GLfloat cameraAngleX = 0.0f;
 GLfloat cameraAngleY = 0.0f;
@@ -21,10 +20,6 @@ GLfloat mouseX = 0.0f;
 GLfloat mouseY = 0.0f;
 bool mouseLeftDown = false;
 bool mouseRightDown = false;
-glm::vec3 cameraPos = glm::vec3(2.5f, 2.5f, 2.0f);
-glm::vec3 cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
-
-std::mutex m;
 
 void GLAPIENTRY
 MessageCallback( GLenum source,
@@ -155,10 +150,10 @@ bool Renderer::init(int& argc, char**& argv)
 
 
   // position the light
-  float lightPos[4] = {0, 0, 20, 1}; // positional light
-  glLightfv(GL_LIGHT0, GL_POSITION, lightPos);
+  /* float lightPos[4] = {0, 0, 20, 1}; // positional light */
+  /* glLightfv(GL_LIGHT0, GL_POSITION, lightPos); */
 
-  glEnable(GL_LIGHT0);                        // MUST enable each light source after configuration
+  /* glEnable(GL_LIGHT0);                        // MUST enable each light source after configuration */
 
   return true;
 }
@@ -166,8 +161,6 @@ bool Renderer::init(int& argc, char**& argv)
 void Renderer::start()
 {
   /* glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); // show only mesh edges */
-
-  cameraDistance = ResourceManager::instance().meshes()[0].getVertices()[0].pos[0];
 
   ResourceManager& res = ResourceManager::instance();
   const Mesh& mesh = res.meshes()[0];
@@ -266,24 +259,10 @@ void Renderer::start()
   glutMainLoop();
 }
 
-glm::vec3 viewRight(1.0, 0.0, 0.0);
-glm::vec3 viewUp(0.0, 1.0, 0.0);
-glm::vec3 viewForward(0.0, 0.0, 1.0);
-glm::vec3 viewPos(0.0, 0.0, 0.0);
-
-
 void Renderer::display()
 {
   // clear buffer
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-
-  // save the initial ModelView matrix before modifying ModelView matrix
-  glPushMatrix();
-
-  // tramsform camera
-  glTranslatef(0, 0, -cameraDistance);
-  glRotatef(cameraAngleX, 1, 0, 0);   // pitch
-  glRotatef(cameraAngleY, 0, 1, 0);   // heading
 
   ResourceManager& res = ResourceManager::instance();
   //res.console() << "MESH: " << res.meshes()[0].vertices[100][1];
@@ -345,29 +324,7 @@ void Renderer::display()
         glm::mat4 model = glm::mat4(1.0f);
         glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(model));
 
-  // Set up projection
-  /* glm::mat4 view = glm::lookAt( */
-  /*     cameraPos, */
-  /*     cameraTarget, */
-  /*     glm::vec3(0.0f, 1.0f, 0.0f) */
-  /* ); */
-
-  /* m.lock(); */
-  /* glm::mat4 view( */
-  /*     viewRight.x, viewUp.x, viewForward.x, viewPos.x, */
-  /*     viewRight.y, viewUp.y, viewForward.y, viewPos.y, */
-  /*     viewRight.z, viewUp.z, viewForward.z, viewPos.z, */
-  /*     0.0, 0.0, 0.0, 1.0 */
-  /* ); */
-
-  glm::mat4 view(
-      viewRight.x, viewUp.x, viewForward.x, 0.0,
-      viewRight.y, viewUp.y, viewForward.y, 0.0,
-      viewRight.z, viewUp.z, viewForward.z, 0.0,
-      -glm::dot(viewRight, viewPos), -glm::dot(viewUp, viewPos), -glm::dot(viewForward, viewPos), 1.0
-  );
-
-  m.unlock();
+  glm::mat4 view = _camera.getView();
 
   GLint uniView = glGetUniformLocation(_shaderProgramId, "view");
   glUniformMatrix4fv(uniView, 1, GL_FALSE, glm::value_ptr(view));
@@ -375,24 +332,13 @@ void Renderer::display()
   glm::mat4 proj = glm::perspective(glm::radians(60.0f), (float)_screenWidth / (float)_screenHeight, 1.0f, 10000.0f);
   GLint uniProj = glGetUniformLocation(_shaderProgramId, "proj");
   glUniformMatrix4fv(uniProj, 1, GL_FALSE, glm::value_ptr(proj));
-  /* GLuint u_projection_matrix = glGetUniformLocation(_shaderProgramId, "u_projection_matrix"); */
-  /* glUniformMatrix4fv(u_projection_matrix, 1, GL_FALSE, glm::value_ptr(proj)); */
 
   // bind texture to sampler in shader
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, _textureId);
   glUniform1i(glGetUniformLocation(_shaderProgramId, "texSampler"), 0);
 
-
-
-  /* glEnableClientState(GL_VERTEX_ARRAY); */
-  /* glEnableClientState(GL_NORMAL_ARRAY); */
-  /* glEnableClientState(GL_TEXTURE_COORD_ARRAY); */
-  /* glVertexPointer(3, GL_FLOAT, 0, 0); */
-
-  /* glDrawArrays(GL_TRIANGLES, 0, 3); */
   glDrawElements(GL_TRIANGLES, res.meshes()[0].getTriangleVerticesCount(), GL_UNSIGNED_INT, 0);
-  /* glDrawElements(GL_TRIANGLES, 1, GL_UNSIGNED_INT, 0); */
   glDrawElements(GL_QUADS, res.meshes()[0].getQuadVerticesCount(), GL_UNSIGNED_INT,
                  (void*)(res.meshes()[0].getTriangleFacesBytes())); // offset
   glDrawElements(GL_QUADS, res.meshes()[0].getQuadVerticesCount(), GL_UNSIGNED_INT,
@@ -400,14 +346,6 @@ void Renderer::display()
 
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-  /* glBindBuffer(GL_TEXTURE_BUFFER, 0); */
-  //glVertexPointer(3, GL_FLOAT, 0, &(*res.meshes()[0].vertices().begin()) );
-  //glDrawArrays(GL_TRIANGLES, 0, res.meshes()[0].vertices().size());
-  //glDrawElements(GL_TRIANGLES, res.meshes()[0].indices().size() * 3, GL_UNSIGNED_INT, &(*res.meshes()[0].indices().begin()) );
-
-
-
-  glPopMatrix();
 
   glutSwapBuffers();
 }
@@ -448,57 +386,39 @@ std::ostream& operator<<(std::ostream& s, glm::vec4 v)
 bool Renderer::handleKeyboard()
 {
   constexpr GLfloat speed = 10.0;
-
-  glm::vec3 backwardDirection = glm::normalize(cameraPos - cameraTarget);
-  glm::vec3 forwardDirection = glm::normalize(-backwardDirection);
-  glm::vec3 right = glm::normalize(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), backwardDirection));
-  glm::vec3 left = -right;
-  glm::vec3 up = glm::cross(backwardDirection, right);
-
   bool stateChanged = false;
   if (_keyboard.isKeyDown('w'))
   {
-    viewPos -= viewForward * speed;
-    cameraTarget += forwardDirection * speed;
+    _camera.moveForward(speed);
     stateChanged = true;
   }
   else if (_keyboard.isKeyDown('s'))
   {
-    viewPos += viewForward * speed;
-    cameraTarget += backwardDirection * speed;
+    _camera.moveBackward(speed);
     stateChanged = true;
   }
 
   if (_keyboard.isKeyDown('a'))
   {
-    viewPos -= viewRight * speed;
-    cameraPos += left * speed;
-    cameraTarget += left * speed;
+    _camera.moveLeft(speed);
     stateChanged = true;
   }
   else if (_keyboard.isKeyDown('d'))
   {
-    viewPos += viewRight * speed;
-    cameraTarget += right * speed;
+    _camera.moveRight(speed);
     stateChanged = true;
   }
   
   if (_keyboard.isKeyDown(' '))
   {
-    viewPos.y += speed;
-    cameraPos += up * speed;
-    cameraTarget += up * speed;
+    _camera.addY(speed);
     stateChanged = true;
   }
   else if (_keyboard.isKeyDown('c'))
   {
-    viewPos.y -= speed;
-    cameraPos -= up * speed;
-    cameraTarget -= up * speed;
+    _camera.subY(speed);
     stateChanged = true;
   }
-      /* cameraPos.x -= speed; */
-      /* cameraTarget.x -= speed; */
 
   /* std::cout << "DBG: after: cameraPos: " << cameraPos << std::endl; */
   /* std::cout << "DBG: after: cameraTarget: " << cameraTarget << std::endl; */
@@ -541,99 +461,15 @@ void Renderer::mouseMotion(int x, int y)
   GLfloat sensitivity = 0.5f;
   GLfloat xOffset = -(x - mouseX);
   GLfloat yOffset = -(y - mouseY);
-  
-  glm::vec3 backwardDirection = glm::normalize(cameraPos - cameraTarget);
-  glm::vec3 forwardDirection = -backwardDirection;
-  glm::vec3 right = glm::normalize(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), backwardDirection));
-  /* glm::vec3 left = -right; */
-  glm::vec3 up = glm::cross(backwardDirection, right);
 
-  /* std::cout << "DBG: xOffset * sensitivity: " << xOffset * sensitivity << std::endl; */
-  /* std::cout << "DBG: yOffset * sensitivity: " << yOffset * sensitivity << std::endl; */
-
-  /* glm::mat4 rotation = glm::mat4(1.0f); */
-  /* rotation = glm::rotate( */
-  /*           rotation, */
-  /*           glm::radians(xOffset * sensitivity), */
-  /*           up */
-  /*       ); */
-  /* rotation = glm::rotate( */
-  /*           rotation, */
-  /*           glm::radians(yOffset * sensitivity), */
-  /*           right */
-  /*       ); */
-
-  /* glm::vec3 forwardDirection = glm::normalize(cameraTarget - cameraPos); */
-
-
-  /* GLfloat oldY = cameraTarget.y; */
-  /* cameraTarget = cameraPos + glm::normalize(glm::vec3(rotation * glm::vec4(forwardDirection, 1.0))); */
-  /* if (glm::abs(oldY - cameraTarget.y) > 1.0) */
-  /*   cameraTarget.y *= -1.0; */
-
-
-
-
-  glm::mat4 rotation = glm::mat4(1.0f);
-  rotation = glm::rotate(
-                rotation,
-                glm::radians(xOffset * sensitivity),
-                viewUp
-              );
-  rotation = glm::rotate(
-                rotation,
-                glm::radians(yOffset * sensitivity),
-                viewRight
-              );
-  
-  viewForward = glm::normalize(glm::vec3(rotation * glm::vec4(viewForward, 1.0)));
-  viewRight = glm::normalize(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), viewForward));
-  viewUp = glm::normalize(glm::cross(viewForward, viewRight));
+  _camera.moveLook(xOffset * sensitivity, yOffset * sensitivity);
 
   /* std::cout << "DBG: viewForward: " << viewForward << std::endl; */
   /* std::cout << "DBG: viewRight: " << viewRight << std::endl; */
   /* std::cout << "DBG: viewUp: " << viewUp << std::endl; */
 
-  /* viewRight = glm::normalize(glm::vec3(rotation * glm::vec4(viewRight, 1.0))); */
-  /* viewUp = glm::normalize(glm::vec3(rotation * glm::vec4(viewUp, 1.0))); */
-
-  /* pitch += yOffset * sensitivity; */
-
-  /* viewUp.y = sin(glm::radians(pitch)); */
-  /* viewForward.y = sin(glm::radians(pitch)); */
-
-
-
-
-
-
-  /* glm::mat4 xRotation = glm::mat4(1.0f); */
-  /* xRotation = glm::rotate( */
-  /*               xRotation, */
-  /*               glm::radians(xOffset * sensitivity), */
-  /*               viewUp */
-  /*             ); */
-
-  /* viewRight = glm::normalize(glm::vec3(xRotation * glm::vec4(viewRight, 1.0))); */
-
-  /* glm::mat4 yRotation = glm::mat4(1.0f); */
-  /* yRotation = glm::rotate( */
-  /*               yRotation, */
-  /*               glm::radians(yOffset * sensitivity), */
-  /*               viewRight */
-  /*             ); */
-
-  /* viewUp = glm::normalize(glm::vec3(yRotation * glm::vec4(viewUp, 1.0))); */
-
-  /* viewForward = glm::normalize(glm::cross(viewRight, viewUp)); */
-
-
   mouseX = x;
   mouseY = y;
-  
-  // TODO: fix cameraTarget nan's when goin on the window border
-  /* std::cout << "DBG: cameraPos: " << cameraPos << std::endl; */
-  /* std::cout << "DBG: cameraTarget: " << cameraTarget << std::endl; */
 }
 
 void Renderer::setPerspective()

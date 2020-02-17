@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Camera.h"
 #include "Keyboard.h"
 #include "Shader.h"
 
@@ -68,6 +69,7 @@ private:
 
   bool loadModels();
 
+  Camera _camera;
   Keyboard _keyboard;
 
   int _screenHandle{0};

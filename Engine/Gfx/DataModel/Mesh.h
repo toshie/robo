@@ -35,6 +35,7 @@ public:
   const size_t getTriangleFacesBytes() const { return _triangleFaces.size() * sizeof(decltype(_triangleFaces)::value_type); }
   const std::uint8_t* getTriangleFacesPtr() const
   {
+    // TODO: reinterpret_cast is probably not the best idea. boost::serialize?
     return reinterpret_cast<const std::uint8_t*>(_triangleFaces.data());
   }
   const size_t getTriangleVerticesCount() const { return _triangleFaces.size() * 3; }

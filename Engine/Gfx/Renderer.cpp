@@ -13,9 +13,6 @@
 
 #include <functional>
 
-GLfloat cameraAngleX = 0.0f;
-GLfloat cameraAngleY = 0.0f;
-GLfloat cameraDistance = 5.0f;
 GLfloat mouseX = 0.0f;
 GLfloat mouseY = 0.0f;
 bool mouseLeftDown = false;

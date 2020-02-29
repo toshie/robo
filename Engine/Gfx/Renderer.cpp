@@ -101,37 +101,13 @@ bool Renderer::init(int& argc, char**& argv)
   glClearDepth(1.0f);                         // 0 is near, 1 is far
 
   // load general shaders and use them
-  if (!_vertexShader.init() || !_fragmentShader.init())
+  if (!_generalShader.init())
   {
     std::cerr << "Could not load needed shaders\n";
     return false;
   }
-
-  _shaderProgramId = glCreateProgram();
-  glAttachShader(_shaderProgramId, _vertexShader.getId());
-  glAttachShader(_shaderProgramId, _fragmentShader.getId());
-  glBindAttribLocation(_shaderProgramId, 0, "pos");
-  glBindFragDataLocation(_shaderProgramId, 0, "FragColor");
-  glLinkProgram(_shaderProgramId);
-  glUseProgram(_shaderProgramId);
   
-  GLint status = GL_TRUE;
-  glGetProgramiv(_shaderProgramId, GL_LINK_STATUS, &status);
-  if (status != GL_TRUE)
-  {
-    GLchar errorLog[256] = {0};
-    GLsizei length = 0;
-    glGetProgramInfoLog(
-        _shaderProgramId, sizeof(errorLog) / sizeof(GLchar), &length, errorLog);
-
-    std::cerr << "ERROR: Shader '"
-              << "' linking failed.\n"
-              << "Message: \n"
-              << errorLog << std::endl;
-
-    return false;
-  }
-
+  _generalShader.use();
 
   // test lights
   // set up light colors (ambient, diffuse, specular)
@@ -317,23 +293,19 @@ void Renderer::display()
   glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 32, (void*)(3 * 4 + 2 * 4));
   glEnableVertexAttribArray(2);
 
-  GLint uniModel = glGetUniformLocation(_shaderProgramId, "model");
-        glm::mat4 model = glm::mat4(1.0f);
-        glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(model));
+  glm::mat4 model = glm::mat4(1.0f);
+  glUniformMatrix4fv(_generalShader.getUniformId("model"), 1, GL_FALSE, glm::value_ptr(model));
 
   glm::mat4 view = _camera.getView();
-
-  GLint uniView = glGetUniformLocation(_shaderProgramId, "view");
-  glUniformMatrix4fv(uniView, 1, GL_FALSE, glm::value_ptr(view));
+  glUniformMatrix4fv(_generalShader.getUniformId("view"), 1, GL_FALSE, glm::value_ptr(view));
 
   glm::mat4 proj = glm::perspective(glm::radians(60.0f), (float)_screenWidth / (float)_screenHeight, 1.0f, 10000.0f);
-  GLint uniProj = glGetUniformLocation(_shaderProgramId, "proj");
-  glUniformMatrix4fv(uniProj, 1, GL_FALSE, glm::value_ptr(proj));
+  glUniformMatrix4fv(_generalShader.getUniformId("proj"), 1, GL_FALSE, glm::value_ptr(proj));
 
   // bind texture to sampler in shader
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, _textureId);
-  glUniform1i(glGetUniformLocation(_shaderProgramId, "texSampler"), 0);
+  glUniform1i(_generalShader.getUniformId("texSampler"), 0); // TODO: GL_TEXTURE0 ?
 
   glDrawElements(GL_TRIANGLES, res.meshes()[0].getTriangleVerticesCount(), GL_UNSIGNED_INT, 0);
   glDrawElements(GL_QUADS, res.meshes()[0].getQuadVerticesCount(), GL_UNSIGNED_INT,

@@ -82,7 +82,6 @@ private:
   GLuint _textureBufferId{0};
   GLuint _textureId{0};
 
-  Shader _vertexShader{"Engine/Gfx/Shaders/General.vert", GL_VERTEX_SHADER};
-  Shader _fragmentShader{"Engine/Gfx/Shaders/General.frag", GL_FRAGMENT_SHADER};
-  GLuint _shaderProgramId{0};
+  Shader _generalShader{std::string("Engine/Gfx/Shaders/General.vert"),
+                        std::string("Engine/Gfx/Shaders/General.frag")};
 };

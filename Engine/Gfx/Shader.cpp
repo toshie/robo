@@ -5,11 +5,49 @@
 
 bool Shader::init()
 {
-  std::ifstream srcFile(_path);
+  boost::optional<GLuint> vertexShader = 
+    load(_vertexShaderPath, Type::Vertex);
+  boost::optional<GLuint> fragmentShader = 
+    load(_fragmentShaderPath, Type::Fragment);
+
+  if (!vertexShader || !fragmentShader)
+    return false;
+
+
+  _programId = glCreateProgram();
+  glAttachShader(_programId, *vertexShader);
+  glAttachShader(_programId, *fragmentShader);
+  glBindAttribLocation(_programId, 0, "pos"); // TODO: needed?
+  glBindFragDataLocation(_programId, 0, "FragColor");
+  glLinkProgram(_programId);
+ 
+  GLint status = GL_TRUE;
+  glGetProgramiv(_programId, GL_LINK_STATUS, &status);
+  if (status != GL_TRUE)
+  {
+    GLchar errorLog[256] = {0};
+    GLsizei length = 0;
+    glGetProgramInfoLog(
+        _programId, sizeof(errorLog) / sizeof(GLchar), &length, errorLog);
+
+    std::cerr << "ERROR: Shader '"
+              << "' linking failed.\n"
+              << "Message: \n"
+              << errorLog << std::endl;
+
+    return false;
+  }
+
+  return true;
+}
+
+boost::optional<GLuint> Shader::load(const std::string& path, Type type)
+{
+  std::ifstream srcFile(path);
   if (!srcFile.is_open())
   {
-    std::cerr << ("ERROR: Cannot open a shader source: " + _path + "\n");
-    return false;
+    std::cerr << ("ERROR: Cannot open a shader source: " + path + "\n");
+    return boost::none;
   }
 
   std::string src, srcLine;
@@ -20,36 +58,34 @@ bool Shader::init()
 
   srcFile.close();
 
-  _id = glCreateShader(_type);
-  if (_id == 0)
+  GLuint id = glCreateShader(type);
+  if (id == 0)
   {
-    std::cerr << "ERROR: Cannot create shader '" << _path
-              << "' of type " << _type << std::endl;
-
-    return false;
+    std::cerr << "ERROR: Cannot create shader '" << path << std::endl;
+    return boost::none;
   }
 
   const char* srcPtr = src.c_str();
   const GLint srcSize = src.size();
-  glShaderSource(_id, 1, &srcPtr, &srcSize);
-  glCompileShader(_id);
+  glShaderSource(id, 1, &srcPtr, &srcSize);
+  glCompileShader(id);
 
   GLint status = GL_TRUE;
-  glGetShaderiv(_id, GL_COMPILE_STATUS, &status);
+  glGetShaderiv(id, GL_COMPILE_STATUS, &status);
   if (status != GL_TRUE)
   {
     GLchar errorLog[256] = {0};
     GLsizei length = 0;
     glGetShaderInfoLog(
-        _id, sizeof(errorLog) / sizeof(GLchar), &length, errorLog);
+        id, sizeof(errorLog) / sizeof(GLchar), &length, errorLog);
 
-    std::cerr << "ERROR: Shader '" << _path
+    std::cerr << "ERROR: Shader '" << path
               << "' compilation failed.\n"
               << "Message: \n"
               << errorLog << std::endl;
 
-    return false;
+    return boost::none;
   }
 
-  return true;
+  return id;
 }

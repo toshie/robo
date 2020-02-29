@@ -27,6 +27,12 @@ public:
       glDeleteProgram(_programId);
   }
 
+  template <typename GlFunc, typename... Args>
+  void setUniform(const std::string& name, GlFunc* f, Args... args)
+  {
+    f(getUniformId(name), args...);
+  }
+
   GLuint getUniformId(const std::string& name) const
   {
     glGetUniformLocation(_programId, name.c_str());

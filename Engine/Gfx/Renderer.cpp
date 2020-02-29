@@ -232,6 +232,11 @@ void Renderer::start()
   glutMainLoop();
 }
 
+
+void test()
+{
+}
+
 void Renderer::display()
 {
   // clear buffer
@@ -294,18 +299,22 @@ void Renderer::display()
   glEnableVertexAttribArray(2);
 
   glm::mat4 model = glm::mat4(1.0f);
-  glUniformMatrix4fv(_generalShader.getUniformId("model"), 1, GL_FALSE, glm::value_ptr(model));
+  /* glUniformMatrix4fv(_generalShader.getUniformId("model"), 1, GL_FALSE, glm::value_ptr(model)); */
+  _generalShader.setUniform("model", glUniformMatrix4fv, 1, GL_FALSE, glm::value_ptr(model));
 
   glm::mat4 view = _camera.getView();
-  glUniformMatrix4fv(_generalShader.getUniformId("view"), 1, GL_FALSE, glm::value_ptr(view));
+  /* glUniformMatrix4fv(_generalShader.getUniformId("view"), 1, GL_FALSE, glm::value_ptr(view)); */
+  _generalShader.setUniform("view", glUniformMatrix4fv, 1, GL_FALSE, glm::value_ptr(view));
 
   glm::mat4 proj = glm::perspective(glm::radians(60.0f), (float)_screenWidth / (float)_screenHeight, 1.0f, 10000.0f);
-  glUniformMatrix4fv(_generalShader.getUniformId("proj"), 1, GL_FALSE, glm::value_ptr(proj));
+  /* glUniformMatrix4fv(_generalShader.getUniformId("proj"), 1, GL_FALSE, glm::value_ptr(proj)); */
+  _generalShader.setUniform("proj", glUniformMatrix4fv, 1, GL_FALSE, glm::value_ptr(proj));
 
   // bind texture to sampler in shader
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, _textureId);
-  glUniform1i(_generalShader.getUniformId("texSampler"), 0); // TODO: GL_TEXTURE0 ?
+  /* glUniform1i(_generalShader.getUniformId("texSampler"), 0); // TODO: GL_TEXTURE0 ? */
+  _generalShader.setUniform("texSampler", glUniform1i, 0);
 
   glDrawElements(GL_TRIANGLES, res.meshes()[0].getTriangleVerticesCount(), GL_UNSIGNED_INT, 0);
   glDrawElements(GL_QUADS, res.meshes()[0].getQuadVerticesCount(), GL_UNSIGNED_INT,
